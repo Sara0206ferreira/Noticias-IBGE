@@ -24,7 +24,7 @@ public class Main {
             System.out.println("3. Exibir todas as notícias carregadas");
             System.out.println("4. Exibir listas (Favoritos, Lidas, Para ler depois)");
             System.out.println("5. Sair");
-            System.out.println("6. Buscar todas as notícias (sem filtro)");  // << NOVA OPÇÃO
+            System.out.println("6. Buscar todas as notícias (sem filtro)");  
             System.out.print("Escolha uma opção: ");
 
             String opcaoStr = scanner.nextLine();
