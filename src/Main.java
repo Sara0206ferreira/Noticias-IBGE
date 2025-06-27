@@ -1,162 +1,309 @@
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
 public class Main {
+    private static List<Noticia> noticiasCarregadasAtualmente = new ArrayList<>();
+
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        IBGENoticiaService service = new IBGENoticiaService();
+        Usuario usuario;
 
-        System.out.print("Digite seu nome ou apelido: ");
-        String nomeUsuario = scanner.nextLine();
-        Usuario usuario = new Usuario(nomeUsuario);
+        
+        usuario = Persistencia.carregarUsuario("usuario.json");
+        if (usuario.getNome().isEmpty()) {
+            System.out.print("Digite seu nome ou apelido: ");
+            usuario.setNome(scanner.nextLine());
+            Persistencia.salvarUsuario(usuario, "usuario.json");
+        }
+        System.out.println("=== Blog de Notícias IBGE ===");
+        System.out.println("Usuário: " + usuario.getNome());
 
-        List<Noticia> favoritos = Persistencia.carregarLista("favoritos.json");
-        List<Noticia> lidas = Persistencia.carregarLista("lidas.json");
-        List<Noticia> paraLerDepois = Persistencia.carregarLista("para_ler_depois.json");
-        List<Noticia> noticiasCarregadas = new ArrayList<>();
+        List<Noticia> noticiasFavoritas = Persistencia.carregarLista("favoritos.json");
+        List<Noticia> noticiasLidas = Persistencia.carregarLista("lidas.json");
+        List<Noticia> noticiasParaLerDepois = Persistencia.carregarLista("para_ler_depois.json");
+        
 
-        while (true) {
-            System.out.println("\n=== Blog de Notícias IBGE ===");
-            System.out.println("Usuário: " + usuario.getNome());
-            System.out.println("1. Buscar notícias por título");
-            System.out.println("2. Buscar notícias por data");
+        
+        noticiasCarregadasAtualmente = IBGEApiService.buscarNoticias(null);
+
+        int opcao;
+        do {
+            System.out.println("\n--- Menu Principal ---");
+            System.out.println("1. Buscar notícias (por título/palavra-chave ou recentes)");
+            System.out.println("2. Buscar notícias por data (AAAA-MM-DD)"); 
             System.out.println("3. Exibir todas as notícias carregadas");
             System.out.println("4. Exibir listas (Favoritos, Lidas, Para ler depois)");
-            System.out.println("5. Sair");
-            System.out.println("6. Buscar todas as notícias (sem filtro)");  
+            System.out.println("5. Ordenar listas");
+            System.out.println("6. Sair");
             System.out.print("Escolha uma opção: ");
-
-            String opcaoStr = scanner.nextLine();
-            int opcao;
-
-            try {
-                opcao = Integer.parseInt(opcaoStr);
-            } catch (NumberFormatException e) {
-                System.out.println("Por favor, digite um número válido.");
-                continue;
-            }
+            opcao = scanner.nextInt();
+            scanner.nextLine();
 
             switch (opcao) {
                 case 1:
-                    System.out.print("Digite o título para buscar: ");
-                    String tituloBusca = scanner.nextLine();
-                    List<Noticia> resultadosTitulo = service.buscarPorTitulo(tituloBusca);
-                    noticiasCarregadas.addAll(resultadosTitulo);
-                    if (resultadosTitulo.isEmpty()) {
-                        System.out.println("Nenhuma notícia encontrada com esse título.");
-                    } else {
-                        resultadosTitulo.forEach(System.out::println);
-                    }
-                    break;
+                    System.out.print("Digite a palavra-chave para buscar (deixe em branco para as 10 mais recentes): ");
+                    String palavraChave = scanner.nextLine();
 
-                case 2:
-                    System.out.print("Digite a data (AAAA-MM-DD): ");
-                    String dataBusca = scanner.nextLine();
-                    List<Noticia> resultadosData = service.buscarPorData(dataBusca);
-                    noticiasCarregadas.addAll(resultadosData);
-                    if (resultadosData.isEmpty()) {
-                        System.out.println("Nenhuma notícia encontrada para essa data.");
-                    } else {
-                        resultadosData.forEach(System.out::println);
-                    }
-                    break;
+                    noticiasCarregadasAtualmente = IBGEApiService.buscarNoticias(palavraChave);
 
-                case 3:
-                    if (noticiasCarregadas.isEmpty()) {
-                        System.out.println("Nenhuma notícia carregada ainda. Use as opções 1, 2 ou 6 para buscar.");
+                    if (noticiasCarregadasAtualmente.isEmpty()) {
+                        System.out.println("Nenhuma notícia encontrada com essa palavra-chave ou recentes.");
                     } else {
                         System.out.println("\n--- Notícias Carregadas ---");
-                        for (int i = 0; i < noticiasCarregadas.size(); i++) {
-                            System.out.println("[" + i + "] " + noticiasCarregadas.get(i).getTitulo());
-                        }
-
-                        System.out.print("\nDigite o número da notícia para ver detalhes e opções, ou -1 para voltar: ");
-                        int escolha = scanner.nextInt();
-                        scanner.nextLine();
-
-                        if (escolha >= 0 && escolha < noticiasCarregadas.size()) {
-                            Noticia selecionada = noticiasCarregadas.get(escolha);
-                            System.out.println("\nDetalhes da Notícia:");
-                            System.out.println(selecionada);
-
-                            System.out.println("\nO que deseja fazer?");
-                            System.out.println("1. Adicionar aos favoritos");
-                            System.out.println("2. Marcar como lida");
-                            System.out.println("3. Adicionar em 'Para ler depois'");
-                            System.out.println("4. Voltar");
-
-                            int acao = scanner.nextInt();
-                            scanner.nextLine();
-
-                            switch (acao) {
-                                case 1:
-                                    favoritos.add(selecionada);
-                                    Persistencia.salvar(favoritos, "favoritos.json");
-                                    System.out.println("Adicionado aos favoritos!");
-                                    break;
-                                case 2:
-                                    lidas.add(selecionada);
-                                    Persistencia.salvar(lidas, "lidas.json");
-                                    System.out.println("Marcada como lida!");
-                                    break;
-                                case 3:
-                                    paraLerDepois.add(selecionada);
-                                    Persistencia.salvar(paraLerDepois, "para_ler_depois.json");
-                                    System.out.println("Adicionado em 'Para ler depois'!");
-                                    break;
-                                case 4:
-                                    System.out.println("Voltando ao menu...");
-                                    break;
-                                default:
-                                    System.out.println("Opção inválida.");
-                            }
-                        }
+                        exibirNoticias(noticiasCarregadasAtualmente);
+                        interagirComNoticias(scanner, noticiasCarregadasAtualmente, noticiasFavoritas, noticiasLidas, noticiasParaLerDepois);
                     }
                     break;
+                case 2:
+                    System.out.print("Digite a data para buscar (AAAA-MM-DD): ");
+                    String dataBusca = scanner.nextLine();
 
+                    
+                    noticiasCarregadasAtualmente = IBGEApiService.buscarNoticiasPorData(dataBusca);
+
+                    if (noticiasCarregadasAtualmente.isEmpty()) {
+                        System.out.println("Nenhuma notícia encontrada para a data " + dataBusca + ".");
+                    } else {
+                        System.out.println("\n--- Notícias Carregadas para " + dataBusca + " ---");
+                        exibirNoticias(noticiasCarregadasAtualmente);
+                        interagirComNoticias(scanner, noticiasCarregadasAtualmente, noticiasFavoritas, noticiasLidas, noticiasParaLerDepois);
+                    }
+                    break;
+                case 3:
+                    System.out.println("\n--- Exibindo Notícias Carregadas Atualmente ---");
+                    if (noticiasCarregadasAtualmente.isEmpty()) {
+                        System.out.println("Nenhuma notícia foi carregada ainda. Use a opção 1 para carregar.");
+                    } else {
+                        exibirNoticias(noticiasCarregadasAtualmente);
+                        interagirComNoticias(scanner, noticiasCarregadasAtualmente, noticiasFavoritas, noticiasLidas, noticiasParaLerDepois);
+                    }
+                    break;
                 case 4:
-                    System.out.println("\n--- Favoritos ---");
-                    if (favoritos.isEmpty()) {
-                        System.out.println("Nenhuma notícia nos favoritos.");
-                    } else {
-                        favoritos.forEach(System.out::println);
-                    }
+                    System.out.println("\n--- Listas Salvas ---");
+                    System.out.println("1. Favoritas");
+                    System.out.println("2. Lidas");
+                    System.out.println("3. Para ler depois");
+                    System.out.print("Escolha qual lista exibir: ");
+                    int subOpcaoLista = scanner.nextInt();
+                    scanner.nextLine();
 
-                    System.out.println("\n--- Lidas ---");
-                    if (lidas.isEmpty()) {
-                        System.out.println("Nenhuma notícia marcada como lida.");
-                    } else {
-                        lidas.forEach(System.out::println);
-                    }
-
-                    System.out.println("\n--- Para ler depois ---");
-                    if (paraLerDepois.isEmpty()) {
-                        System.out.println("Nenhuma notícia na lista 'Para ler depois'.");
-                    } else {
-                        paraLerDepois.forEach(System.out::println);
+                    switch (subOpcaoLista) {
+                        case 1:
+                            if (noticiasFavoritas.isEmpty()) {
+                                System.out.println("Sua lista de favoritos está vazia.");
+                            } else {
+                                exibirNoticias(noticiasFavoritas);
+                                interagirComNoticias(scanner, noticiasFavoritas, noticiasFavoritas, noticiasLidas, noticiasParaLerDepois);
+                            }
+                            break;
+                        case 2:
+                            if (noticiasLidas.isEmpty()) {
+                                System.out.println("Sua lista de notícias lidas está vazia.");
+                            } else {
+                                exibirNoticias(noticiasLidas);
+                                interagirComNoticias(scanner, noticiasLidas, noticiasFavoritas, noticiasLidas, noticiasParaLerDepois);
+                            }
+                            break;
+                        case 3:
+                            if (noticiasParaLerDepois.isEmpty()) {
+                                System.out.println("Sua lista de notícias para ler depois está vazia.");
+                            } else {
+                                exibirNoticias(noticiasParaLerDepois);
+                                interagirComNoticias(scanner, noticiasParaLerDepois, noticiasFavoritas, noticiasLidas, noticiasParaLerDepois);
+                            }
+                            break;
+                        default:
+                            System.out.println("Opção de lista inválida.");
                     }
                     break;
-
                 case 5:
-                    System.out.println("Saindo... Até mais, " + usuario.getNome() + "!");
-                    scanner.close();
-                    return;
+                    System.out.println("\n--- Ordenar Listas ---");
+                    System.out.println("1. Ordenar Notícias Carregadas Atualmente");
+                    System.out.println("2. Ordenar Favoritas");
+                    System.out.println("3. Ordenar Lidas");
+                    System.out.println("4. Ordenar Para ler depois");
+                    System.out.print("Escolha qual lista ordenar: ");
+                    int subOpcaoOrdenar = scanner.nextInt();
+                    scanner.nextLine();
 
-                case 6:
-                    System.out.println("Buscando todas as notícias do IBGE...");
-                    List<Noticia> todasNoticias = service.buscarTodasNoticias();
-                    noticiasCarregadas.addAll(todasNoticias);
-                    if (todasNoticias.isEmpty()) {
-                        System.out.println("Nenhuma notícia encontrada.");
-                    } else {
-                        todasNoticias.forEach(System.out::println);
+                    switch (subOpcaoOrdenar) {
+                        case 1:
+                            if (noticiasCarregadasAtualmente.isEmpty()) {
+                                System.out.println("A lista de notícias carregadas está vazia para ordenar.");
+                            } else {
+                                ordenarListasMenu(scanner, noticiasCarregadasAtualmente, "Notícias Carregadas Atualmente");
+                            }
+                            break;
+                        case 2:
+                            if (noticiasFavoritas.isEmpty()) {
+                                System.out.println("A lista de favoritos está vazia para ordenar.");
+                            } else {
+                                ordenarListasMenu(scanner, noticiasFavoritas, "Favoritas");
+                            }
+                            break;
+                        case 3:
+                            if (noticiasLidas.isEmpty()) {
+                                System.out.println("A lista de lidas está vazia para ordenar.");
+                            } else {
+                                ordenarListasMenu(scanner, noticiasLidas, "Lidas");
+                            }
+                            break;
+                        case 4:
+                            if (noticiasParaLerDepois.isEmpty()) {
+                                System.out.println("A lista 'Para ler depois' está vazia para ordenar.");
+                            } else {
+                                ordenarListasMenu(scanner, noticiasParaLerDepois, "Para ler depois");
+                            }
+                            break;
+                        default:
+                            System.out.println("Opção de ordenação inválida.");
                     }
                     break;
-
+                case 6:
+                    System.out.println("Saindo do programa. Até logo, " + usuario.getNome() + "!");
+                    Persistencia.salvarUsuario(usuario, "usuario.json");
+                    Persistencia.salvar(noticiasFavoritas, "favoritos.json");
+                    Persistencia.salvar(noticiasLidas, "lidas.json");
+                    Persistencia.salvar(noticiasParaLerDepois, "para_ler_depois.json");
+                    break;
                 default:
                     System.out.println("Opção inválida. Tente novamente.");
             }
+        } while (opcao != 6);
+
+        scanner.close();
+    }
+
+    
+    private static void exibirNoticias(List<Noticia> lista) {
+        if (lista.isEmpty()) {
+            System.out.println("Nenhuma notícia para exibir.");
+            return;
         }
+        for (int i = 0; i < lista.size(); i++) {
+            System.out.println((i + 1) + ". " + lista.get(i).getTitulo() + " (" + lista.get(i).getDataPublicacao() + ")");
+        }
+    }
+
+    
+    private static void interagirComNoticias(Scanner scanner, List<Noticia> listaAtual, List<Noticia> favoritos, List<Noticia> lidas, List<Noticia> paraLerDepois) {
+        if (listaAtual.isEmpty()) {
+            return;
+        }
+        System.out.println("\n--- Interagir com Notícias ---");
+        System.out.println("1. Ver detalhes de uma notícia");
+        System.out.println("2. Adicionar aos favoritos");
+        System.out.println("3. Marcar como lida");
+        System.out.println("4. Adicionar para ler depois");
+        System.out.println("0. Voltar ao menu principal");
+        System.out.print("Escolha uma opção: ");
+        int opcaoInteracao = scanner.nextInt();
+        scanner.nextLine(); 
+
+        int indiceNoticia;
+        Noticia noticiaSelecionada;
+
+        switch (opcaoInteracao) {
+            case 1:
+                System.out.print("Digite o número da notícia para ver detalhes: ");
+                indiceNoticia = scanner.nextInt();
+                scanner.nextLine();
+                if (indiceNoticia > 0 && indiceNoticia <= listaAtual.size()) {
+                    noticiaSelecionada = listaAtual.get(indiceNoticia - 1);
+                    System.out.println("\n--- Detalhes da Notícia ---");
+                    System.out.println("Título: " + noticiaSelecionada.getTitulo());
+                    System.out.println("Introdução: " + noticiaSelecionada.getIntroducao());
+                    System.out.println("Data: " + noticiaSelecionada.getDataPublicacao());
+                    System.out.println("Tipo: " + noticiaSelecionada.getTipo());
+                    System.out.println("Fonte: " + noticiaSelecionada.getFonte());
+                    System.out.println("Link: " + noticiaSelecionada.getLink());
+                } else {
+                    System.out.println("Número de notícia inválido.");
+                }
+                break;
+            case 2:
+                System.out.print("Digite o número da notícia para adicionar aos favoritos: ");
+                indiceNoticia = scanner.nextInt();
+                scanner.nextLine();
+                if (indiceNoticia > 0 && indiceNoticia <= listaAtual.size()) {
+                    noticiaSelecionada = listaAtual.get(indiceNoticia - 1);
+                    if (!favoritos.contains(noticiaSelecionada)) {
+                        favoritos.add(noticiaSelecionada);
+                        System.out.println("Notícia adicionada aos favoritos!");
+                    } else {
+                        System.out.println("Esta notícia já está nos favoritos.");
+                    }
+                } else {
+                    System.out.println("Número de notícia inválido.");
+                }
+                break;
+            case 3:
+                System.out.print("Digite o número da notícia para marcar como lida: ");
+                indiceNoticia = scanner.nextInt();
+                scanner.nextLine();
+                if (indiceNoticia > 0 && indiceNoticia <= listaAtual.size()) {
+                    noticiaSelecionada = listaAtual.get(indiceNoticia - 1);
+                    if (!lidas.contains(noticiaSelecionada)) {
+                        lidas.add(noticiaSelecionada);
+                        System.out.println("Notícia marcada como lida!");
+                    } else {
+                        System.out.println("Esta notícia já foi marcada como lida.");
+                    }
+                } else {
+                    System.out.println("Número de notícia inválido.");
+                }
+                break;
+            case 4:
+                System.out.print("Digite o número da notícia para adicionar para ler depois: ");
+                indiceNoticia = scanner.nextInt();
+                scanner.nextLine();
+                if (indiceNoticia > 0 && indiceNoticia <= listaAtual.size()) {
+                    noticiaSelecionada = listaAtual.get(indiceNoticia - 1);
+                    if (!paraLerDepois.contains(noticiaSelecionada)) {
+                        paraLerDepois.add(noticiaSelecionada);
+                        System.out.println("Notícia adicionada para ler depois!");
+                    } else {
+                        System.out.println("Esta notícia já está na lista 'Para ler depois'.");
+                    }
+                } else {
+                    System.out.println("Número de notícia inválido.");
+                }
+                break;
+            case 0:
+                
+                break;
+            default:
+                System.out.println("Opção inválida. Tente novamente.");
+        }
+    }
+
+    private static void ordenarListasMenu(Scanner scanner, List<Noticia> lista, String nomeLista) {
+        System.out.println("\n--- Ordenar " + nomeLista + " ---");
+        System.out.println("1. Por Título");
+        System.out.println("2. Por Data");
+        System.out.println("3. Por Tipo");
+        System.out.print("Escolha o critério de ordenação: ");
+        int criterio = scanner.nextInt();
+        scanner.nextLine();
+
+        switch (criterio) {
+            case 1:
+                Ordenador.ordenarPorTitulo(lista);
+                System.out.println("Lista " + nomeLista + " ordenada por título.");
+                break;
+            case 2:
+                Ordenador.ordenarPorData(lista);
+                System.out.println("Lista " + nomeLista + " ordenada por data.");
+                break;
+            case 3:
+                Ordenador.ordenarPorTipo(lista);
+                System.out.println("Lista " + nomeLista + " ordenada por tipo.");
+                break;
+            default:
+                System.out.println("Opção inválida.");
+        }
+        exibirNoticias(lista); 
     }
 }
